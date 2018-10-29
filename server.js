@@ -6,20 +6,23 @@ const path = require("path");
 const multer = require("multer")
 
 // connect the DB
-const mongoDB = "mongodb://trips:trips123@ds143893.mlab.com:43893/trips"
-mongoose.connect(mongoDB);
+require('dotenv').config({ path: "./variables.env" })
+mongoose.connect(process.env.DATABASE);
 
 app.use(express.static("public"))
+
+//set HBS as a template engine 
 app.set("views", path.join(__dirname, "views"))
 app.set("view engine", "hbs")
 
+//use the body parser
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 //get the Schema from DB
 const Trip = require("./models/Trip")
 
-// using multer to specify the uploaded images location and check the naming
+// using multer to specify the uploaded images location and change the naming
 const imageStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, "./public/uploads");
@@ -62,13 +65,17 @@ const uploadImage = multer({
     fileFilter: fileFilter
 });
 
+// set routes
+
 app.get("/", (req, res) => {
     res.render("home")
 })
 
 app.get("/trips", async (req, res) => {
-    let allTrips = await Trip.find();
-    res.render("trips")
+    await Trip.find().then(result => {
+        res.render("trips", { result })
+    })
+        .catch(err => { throw err })
 })
 
 app.get("/contact", (req, res) => {
@@ -79,24 +86,23 @@ app.get("/addnew", (req, res) => {
 })
 
 // create a new trip post and pass it to trip.hbs
-app.post("/addcountry", uploadImage.single("imgURL"), (req, res) => {
-    let newTrip = createTrip(req.body, req.file);
-    console.log(newTrip);
-    // newTrip.save()
-    res.render("trips", {
-        city: `${req.body.city}`,
-        country: `${req.body.country}`,
-        article: `${req.body.article}`,
-        imgURL: `${req.file.path}`
+app.post("/addcountry", uploadImage.single("imgURL"), async (req, res) => {
+    const imagePath = req.file.path.split('/').slice(1, 3).join().replace(',', '/');
+    let newTrip = createTrip(req.body, imagePath);
+    await newTrip.save()
+    await Trip.find().then(result => {
+        res.render("trips", { result })
     })
+        .catch(err => { throw err })
 })
 
-const createTrip = (data, file) => {
+// we created this function to create a new object in the DB and save it
+const createTrip = (data, filePath) => {
     return new Trip({
         country: data.country,
         city: data.city,
         article: data.article,
-        imgURL: file.path
+        imgURL: filePath
     });
 };
 
