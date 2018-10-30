@@ -3,7 +3,7 @@ const mongoose = require("mongoose")
 const TripSchema = new mongoose.Schema({
     country: {
         type: String,
-        lowercase: true,
+        lowercase: true
     },
     city: {
         type: String,
